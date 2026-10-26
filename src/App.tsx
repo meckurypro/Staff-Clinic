@@ -6,11 +6,27 @@ import Home from './pages/Home'
 import Patients from './pages/Patients'
 import PatientDetail from './pages/PatientDetail'
 import Reports from './pages/Reports'
+import Admin from './pages/Admin'
+import { FormEvent, useState } from 'react'
+
+function SetPassword({ done }: { done: () => void }) {
+  const [pw, setPw] = useState(''); const [err, setErr] = useState('')
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    if (pw.length < 8) return setErr('Use at least 8 characters.')
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    if (error) setErr(error.message); else done()
+  }
+  return <form className="login" onSubmit={save}><h1>Set a new password</h1>
+    <label>New password<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" required /></label>
+    {err && <p className="err">{err}</p>}<button className="primary block">Save password</button></form>
+}
 
 function Shell() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, recovery, clearRecovery } = useAuth()
   if (!configured) return <div className="center"><h1>Setup needed</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example), then reload.</p></div>
   if (loading) return <div className="center">Loading…</div>
+  if (recovery && session) return <SetPassword done={clearRecovery} />
   if (!session) return <Login />
   if (!profile) return <div className="center"><h1>No clinic profile</h1><p>Your login works, but no profile is linked to it yet. Ask the admin to add one.</p><button onClick={() => supabase.auth.signOut()}>Sign out</button></div>
   const viewer = profile.role === 'safety_manager'
@@ -24,6 +40,7 @@ function Shell() {
             <Route path="/patients" element={<Patients />} />
             <Route path="/patients/:id" element={<PatientDetail />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/admin" element={profile.is_admin ? <Admin /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
           </>}
         </Routes>
@@ -32,6 +49,7 @@ function Shell() {
         {!viewer && <NavLink to="/" end>Home</NavLink>}
         {!viewer && <NavLink to="/patients">Patients</NavLink>}
         <NavLink to={viewer ? '/' : '/reports'}>Reports</NavLink>
+        {profile.is_admin && <NavLink to="/admin">Admin</NavLink>}
         <button onClick={() => supabase.auth.signOut()}>Sign out</button>
       </nav>
     </div>

@@ -38,3 +38,12 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .vit{margin:.1rem 0;font-weight:500}
 .login,.center{max-width:380px;margin:12vh auto;padding:1rem}
 @media (prefers-reduced-motion:no-preference){.bed{transition:background .2s}}
+.ok{color:var(--free);font-weight:600}
+.back{display:inline-block;margin-bottom:.4rem;color:var(--ink);font-weight:600;text-decoration:none}
+.note-msg{background:#e8f1ef;border-radius:8px;padding:.6rem .8rem;font-weight:500}
+.rowline{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.6rem 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.rowline select{width:auto;margin:0;min-height:40px}.acts{display:flex;gap:.4rem;flex-wrap:wrap}
+.block2{display:block}
+button.sm{border:1px solid var(--ink);background:#fff;color:var(--ink);border-radius:8px;padding:.45rem .7rem;min-height:40px;cursor:pointer}
+.links{display:flex;justify-content:space-between}.links a{color:var(--ink)}
+.row button{align-self:end;margin-bottom:.7rem}

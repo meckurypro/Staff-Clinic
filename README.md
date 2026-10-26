@@ -4,8 +4,8 @@ Mobile-first staff clinic records app (React + TypeScript + Vite) on Supabase, d
 Edge functions live in Supabase, not in this repo. This repo is the frontend plus the database migration.
 
 ## Setup
-1. Create a Supabase project and run `supabase/migrations/001_boi_clinic_schema.sql` in the SQL editor.
-2. Authentication > Add user for each person, and turn off public signups. Then link each login to a profile (see the end of the SQL file).
+1. In Supabase, apply `supabase/migrations/001`, `002`, `003` in order (SQL editor or MCP) and deploy `supabase/functions/ai-test`.
+2. Authentication: keep email confirmation on, set Site URL and Redirect URLs to your Vercel domain, and (recommended) enable the Before User Created hook with `public.hook_restrict_signup`. The first admin invite is seeded in migration 002; add the doctor and safety manager from the Admin page, then each sets a password on the sign-in page.
 3. `cp .env.example .env` and fill in the project URL and anon key.
 4. `npm install && npm run dev`
 

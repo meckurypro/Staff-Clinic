@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+const iso = (d: Date) => d.toLocaleDateString('en-CA')
 export default function Reports() {
   const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 6)
   const [from, setFrom] = useState(iso(start)); const [to, setTo] = useState(iso(end))

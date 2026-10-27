@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { supabase } from '../lib/supabase'
-const blank = { bp: '', pulse: '', temp: '', weight: '', rbs: '', complaint: '', nursing: '', doctor: '', drug: '', dose: '', freq: '', dur: '' }
+const blank = { when: '', diag: '', concern: '', remark: '', bp: '', pulse: '', temp: '', weight: '', rbs: '', complaint: '', nursing: '', doctor: '', drug: '', dose: '', freq: '', dur: '' }
 export default function PatientDetail() {
   const { id } = useParams(); const { profile } = useAuth()
   const [p, setP] = useState<any>(null); const [visits, setVisits] = useState<any[]>([])
@@ -24,12 +24,12 @@ export default function PatientDetail() {
     e.preventDefault(); setErr('')
     const nurse = profile?.role === 'nurse'
     let attr: any = { entry_type: 'original' }
-    if (nurse && (f.doctor || f.drug)) {
+    if (nurse && (f.doctor || f.drug || f.diag)) {
       const d = await supabase.from('profiles').select('id').eq('role', 'doctor').eq('is_active', true).limit(1)
       if (!d.data?.[0]) { setErr('No doctor account exists yet, so doctor entries cannot be saved.'); return }
       attr = { entry_type: 'on_behalf_pending', author_id: d.data[0].id }
     }
-    const v = await supabase.from('visits').insert({ patient_id: id, created_by: profile?.id }).select('id').single()
+    const v = await supabase.from('visits').insert({ patient_id: id, created_by: profile?.id, visit_at: f.when ? new Date(f.when).toISOString() : undefined, major_concern: f.concern || null, remark: f.remark || null }).select('id').single()
     if (v.error) { setErr(v.error.message); return }
     const vid = v.data.id; const [sys, dia] = f.bp.split('/')
     const n = (x: string) => (x ? +x : null)
@@ -37,6 +37,7 @@ export default function PatientDetail() {
     if (f.bp || f.pulse || f.temp || f.weight || f.rbs) jobs.push(supabase.from('vitals').insert({ visit_id: vid, bp_systolic: n(sys), bp_diastolic: n(dia), pulse: n(f.pulse), temp_c: n(f.temp), weight_kg: n(f.weight), rbs_mgdl: n(f.rbs), recorded_by: profile?.id }))
     if (f.complaint) jobs.push(supabase.from('visit_notes').insert({ visit_id: vid, kind: 'complaint', body: f.complaint, entry_type: 'original' }))
     if (f.nursing) jobs.push(supabase.from('visit_notes').insert({ visit_id: vid, kind: 'nursing', body: f.nursing, entry_type: 'original' }))
+    if (f.diag) jobs.push(supabase.from('visit_notes').insert({ visit_id: vid, kind: 'diagnosis', body: f.diag, ...attr }))
     if (f.doctor) jobs.push(supabase.from('visit_notes').insert({ visit_id: vid, kind: 'medical', body: f.doctor, ...attr }))
     if (f.drug) jobs.push(supabase.from('prescriptions').insert({ visit_id: vid, drug: f.drug, dose: f.dose, frequency: f.freq, duration: f.dur, ...attr }))
     const res = await Promise.all(jobs); const bad = res.find(r => r.error)
@@ -59,11 +60,15 @@ export default function PatientDetail() {
       {!open ? <button className="primary block" onClick={() => setOpen(true)}>New visit</button> :
         <form className="card" onSubmit={saveVisit}>
           <h2>New visit</h2>
+          <label>Visit date and time <small>(leave empty for now)</small><input type="datetime-local" value={f.when} onChange={set('when')} /></label>
           <div className="row"><label>BP<input placeholder="120/80" value={f.bp} onChange={set('bp')} /></label><label>Pulse<input type="number" value={f.pulse} onChange={set('pulse')} /></label></div>
           <div className="row"><label>Temp °C<input type="number" step="0.1" value={f.temp} onChange={set('temp')} /></label><label>Weight kg<input type="number" step="0.1" value={f.weight} onChange={set('weight')} /></label><label>RBS<input type="number" step="0.1" value={f.rbs} onChange={set('rbs')} /></label></div>
           <label>Complaint<textarea value={f.complaint} onChange={set('complaint')} required /></label>
           <label>Nursing note<textarea value={f.nursing} onChange={set('nursing')} /></label>
           <label>Doctor's note{profile?.role === 'nurse' && <small> (saved as entered by you for the doctor)</small>}<textarea value={f.doctor} onChange={set('doctor')} /></label>
+          <label>Diagnosis / medical condition{profile?.role === 'nurse' && <small> (saved as entered by you for the doctor)</small>}<input value={f.diag} onChange={set('diag')} /></label>
+          <label>Major concern <small>(only if there is one)</small><input value={f.concern} onChange={set('concern')} /></label>
+          <label>Remark <small>(leave empty to fill from prescriptions, referrals and bed rest)</small><input value={f.remark} onChange={set('remark')} /></label>
           <label>Prescription — drug<input value={f.drug} onChange={set('drug')} /></label>
           <div className="row"><label>Dose<input value={f.dose} onChange={set('dose')} /></label><label>Frequency<input value={f.freq} onChange={set('freq')} /></label><label>Duration<input value={f.dur} onChange={set('dur')} /></label></div>
           {err && <p className="err">{err}</p>}
@@ -75,6 +80,7 @@ export default function PatientDetail() {
         return (
           <article key={v.id} className="card">
             <h3>{new Date(v.visit_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</h3>
+            {v.major_concern && <p className="err">Major concern: {v.major_concern}</p>}{v.remark && <p className="muted">{v.remark}</p>}
             {v.vitals?.map((x: any) => <p key={x.id} className="vit">{[x.bp_systolic && `BP ${x.bp_systolic}/${x.bp_diastolic}`, x.pulse && `PR ${x.pulse}`, x.temp_c && `${x.temp_c}°C`, x.weight_kg && `${x.weight_kg}kg`, x.rbs_mgdl && `RBS ${x.rbs_mgdl}`].filter(Boolean).join(' · ')}</p>)}
             {v.visit_notes?.map((n: any) => <div key={n.id} className="note"><b>{n.kind}</b> {n.body}<small>{who(n)}</small>{n.entry_type === 'on_behalf_pending' && n.author_id === profile?.id && <button onClick={() => confirm('visit_notes', n.id)}>Confirm</button>}</div>)}
             {v.prescriptions?.map((r: any) => <div key={r.id} className="note"><b>Rx</b> {[r.drug, r.dose, r.frequency, r.duration].filter(Boolean).join(' ')}<small>{who(r)}</small>{r.entry_type === 'on_behalf_pending' && r.author_id === profile?.id && <button onClick={() => confirm('prescriptions', r.id)}>Confirm</button>}</div>)}

@@ -6,8 +6,9 @@ import Home from './pages/Home'
 import Patients from './pages/Patients'
 import PatientDetail from './pages/PatientDetail'
 import Reports from './pages/Reports'
-import Admin from './pages/Admin'
-import { FormEvent, useState } from 'react'
+import { FormEvent, Suspense, lazy, useState } from 'react'
+const Admin = lazy(() => import('./pages/Admin'))
+const ReportView = lazy(() => import('./pages/ReportView'))
 
 function SetPassword({ done }: { done: () => void }) {
   const [pw, setPw] = useState(''); const [err, setErr] = useState('')
@@ -34,16 +35,17 @@ function Shell() {
     <div className="shell">
       <header><strong>Staff Clinic</strong><span>{profile.full_name} · {profile.role.replace('_', ' ')}</span></header>
       <main>
-        <Routes>
-          {viewer ? <Route path="*" element={<Reports />} /> : <>
+        <Suspense fallback={<p className="muted">Loading…</p>}><Routes>
+          {viewer ? <><Route path="/reports/:id" element={<ReportView />} /><Route path="*" element={<Reports />} /></> : <>
             <Route path="/" element={<Home />} />
             <Route path="/patients" element={<Patients />} />
             <Route path="/patients/:id" element={<PatientDetail />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/:id" element={<ReportView />} />
             <Route path="/admin" element={profile.is_admin ? <Admin /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
           </>}
-        </Routes>
+        </Routes></Suspense>
       </main>
       <nav>
         {!viewer && <NavLink to="/" end>Home</NavLink>}

@@ -8,6 +8,7 @@ import PatientDetail from './pages/PatientDetail'
 import Reports from './pages/Reports'
 import { FormEvent, Suspense, lazy, useState } from 'react'
 const Admin = lazy(() => import('./pages/Admin'))
+const ImportExcel = lazy(() => import('./pages/ImportExcel'))
 const ReportView = lazy(() => import('./pages/ReportView'))
 
 function SetPassword({ done }: { done: () => void }) {
@@ -43,6 +44,7 @@ function Shell() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/:id" element={<ReportView />} />
             <Route path="/admin" element={profile.is_admin ? <Admin /> : <Navigate to="/" />} />
+            <Route path="/admin/import" element={profile.is_admin ? <ImportExcel /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" />} />
           </>}
         </Routes></Suspense>

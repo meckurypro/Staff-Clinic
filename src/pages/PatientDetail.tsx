@@ -50,7 +50,7 @@ export default function PatientDetail() {
     if (r.error) setErr(r.error.message); else load()
   }
   async function confirm(table: string, rowId: string) { await supabase.from(table).update({ entry_type: 'confirmed' }).eq('id', rowId); load() }
-  const who = (r: any) => r.entry_type === 'on_behalf_pending' ? `Entered by ${r.entered?.full_name} for ${r.author?.full_name}, awaiting review`
+  const who = (r: any) => r.entry_type === 'transcribed' && !r.author_id ? 'Imported from the clinic Excel records' : r.entry_type === 'on_behalf_pending' ? `Entered by ${r.entered?.full_name} for ${r.author?.full_name}, awaiting review`
     : r.entry_type === 'confirmed' ? `${r.author?.full_name}, confirmed` : r.author?.full_name
   if (!p) return <p className="muted">Loading…</p>
   return (

@@ -79,6 +79,7 @@ export default function Admin() {
         {sel && <p className="muted">{sel.note}. Checked {sel.verified_on}.</p>}
         <label>API key {keys[ai.provider] ? <b className="ok">saved</b> : <b className="err">not saved</b>}<input type="password" placeholder={keys[ai.provider] ? 'Leave empty to keep the saved key' : 'Paste key'} value={apiKey} onChange={e => setApiKey(e.target.value)} autoComplete="off" /></label>
         <div className="row"><button className="primary" onClick={saveAi}>Save</button><button className="sm" onClick={testAi}>Test connection</button></div></section>}
+      <section className="card"><h2>Import old records</h2><p className="muted">Bring in the clinic's Excel consultation sheet, with a review step first.</p><Link className="sm linkbtn" to="/admin/import">Import from Excel</Link></section>
       <section className="card"><h2>Demo data</h2><p className="muted">Removes only the fictional patients and everything attached to them.</p><button className="sm" onClick={clearDemo}>Clear demo data</button></section>
       <form className="card" onSubmit={changePw}><h2>My password</h2><label>New password<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" /></label><button className="sm">Update password</button></form>
     </>

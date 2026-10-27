@@ -7,36 +7,62 @@ import Patients from './pages/Patients'
 import PatientDetail from './pages/PatientDetail'
 import Reports from './pages/Reports'
 import { FormEvent, Suspense, lazy, useState } from 'react'
+import { Avatar, Icon, Loading, Logo, Notice, ROLE_LABEL, Spinner } from './ui'
 const Admin = lazy(() => import('./pages/Admin'))
 const ImportExcel = lazy(() => import('./pages/ImportExcel'))
 const ReportView = lazy(() => import('./pages/ReportView'))
 
 function SetPassword({ done }: { done: () => void }) {
-  const [pw, setPw] = useState(''); const [err, setErr] = useState('')
+  const [pw, setPw] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   async function save(e: FormEvent) {
     e.preventDefault()
     if (pw.length < 8) return setErr('Use at least 8 characters.')
+    setBusy(true)
     const { error } = await supabase.auth.updateUser({ password: pw })
+    setBusy(false)
     if (error) setErr(error.message); else done()
   }
-  return <form className="login" onSubmit={save}><h1>Set a new password</h1>
+  return <div className="center-card"><form className="panel" onSubmit={save}><h1>Set a new password</h1><p>Choose a password you have not used here before.</p>
     <label>New password<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" required /></label>
-    {err && <p className="err">{err}</p>}<button className="primary block">Save password</button></form>
+    {err && <Notice tone="error">{err}</Notice>}
+    <button className="btn btn-primary btn-block" disabled={busy}>{busy ? <><Spinner />Saving…</> : 'Save password'}</button></form></div>
 }
 
 function Shell() {
   const { session, profile, loading, recovery, clearRecovery } = useAuth()
-  if (!configured) return <div className="center"><h1>Setup needed</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example), then reload.</p></div>
-  if (loading) return <div className="center">Loading…</div>
+  if (!configured) return <div className="center-card"><div className="panel"><h1>Setup needed</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example), then reload.</p></div></div>
+  if (loading) return <div className="center-card"><Loading /></div>
   if (recovery && session) return <SetPassword done={clearRecovery} />
   if (!session) return <Login />
-  if (!profile) return <div className="center"><h1>No clinic profile</h1><p>Your login works, but no profile is linked to it yet. Ask the admin to add one.</p><button onClick={() => supabase.auth.signOut()}>Sign out</button></div>
+  if (!profile) return <div className="center-card"><div className="panel"><h1>No clinic profile</h1><p>Your login works, but no profile is linked to it yet. Ask the admin to add one.</p><button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>Sign out</button></div></div>
   const viewer = profile.role === 'safety_manager'
+  const items = viewer ? [{ to: '/', label: 'Reports', icon: 'chart', end: false }] : [
+    { to: '/', label: 'Home', icon: 'home', end: true },
+    { to: '/patients', label: 'Patients', icon: 'users', end: false },
+    { to: '/reports', label: 'Reports', icon: 'chart', end: false },
+  ]
+  if (profile.is_admin) items.push({ to: '/admin', label: 'Admin', icon: 'shield', end: false })
+  const signOut = () => supabase.auth.signOut()
+  const brand = <><Logo /><span><b>Staff Clinic</b><small>Healthy staff. Productive workplace.</small></span></>
   return (
-    <div className="shell">
-      <header><strong>Staff Clinic</strong><span>{profile.full_name} · {profile.role.replace('_', ' ')}</span></header>
-      <main>
-        <Suspense fallback={<p className="muted">Loading…</p>}><Routes>
+    <div className="app">
+      <aside className="sidebar">
+        <div className="brand">{brand}</div>
+        <nav className="side-nav" aria-label="Main">
+          {items.map(i => <NavLink key={i.label} to={i.to} end={i.end}><Icon name={i.icon} />{i.label}</NavLink>)}
+        </nav>
+        <div className="side-user">
+          <Avatar name={profile.full_name} size={40} />
+          <div><b>{profile.full_name}</b><br /><small>{ROLE_LABEL[profile.role] ?? profile.role}</small></div>
+          <button className="btn btn-onnavy btn-sm" onClick={signOut}><Icon name="logout" size={16} />Sign out</button>
+        </div>
+      </aside>
+      <div className="topbar">
+        <div className="brand">{brand}</div>
+        <button className="iconbtn" onClick={signOut} aria-label="Sign out"><Icon name="logout" /></button>
+      </div>
+      <main className="content">
+        <Suspense fallback={<Loading />}><Routes>
           {viewer ? <><Route path="/reports/:id" element={<ReportView />} /><Route path="*" element={<Reports />} /></> : <>
             <Route path="/" element={<Home />} />
             <Route path="/patients" element={<Patients />} />
@@ -49,12 +75,8 @@ function Shell() {
           </>}
         </Routes></Suspense>
       </main>
-      <nav>
-        {!viewer && <NavLink to="/" end>Home</NavLink>}
-        {!viewer && <NavLink to="/patients">Patients</NavLink>}
-        <NavLink to={viewer ? '/' : '/reports'}>Reports</NavLink>
-        {profile.is_admin && <NavLink to="/admin">Admin</NavLink>}
-        <button onClick={() => supabase.auth.signOut()}>Sign out</button>
+      <nav className="tabbar" aria-label="Main">
+        {items.map(i => <NavLink key={i.label} to={i.to} end={i.end}><span className="tab-ico"><Icon name={i.icon} size={22} /></span>{i.label}</NavLink>)}
       </nav>
     </div>
   )

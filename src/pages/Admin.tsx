@@ -3,6 +3,7 @@ import { useAuth } from '../auth'
 import { supabase } from '../lib/supabase'
 import { Avatar, Icon, Notice, PageHeader } from '../ui'
 import { Link } from 'react-router-dom'
+import { Backups, ClinicSetup, Duplicates } from './AdminExtras'
 const ROLES: [string, string][] = [['nurse', 'Nurse'], ['doctor', 'Doctor'], ['safety_manager', 'Safety manager']]
 const PROVIDERS: [string, string][] = [['anthropic', 'Anthropic (Claude)'], ['openai', 'OpenAI'], ['gemini', 'Google (Gemini)']]
 export default function Admin() {
@@ -119,6 +120,10 @@ export default function Admin() {
           {saEmail && <p className="muted">Share the Google Sheet with <b>{saEmail}</b> as Editor.</p>}
           <div className="form-actions"><button className="btn btn-primary" onClick={saveSheet}>Save</button><button className="btn btn-secondary" onClick={syncNow}>Refresh sheet now</button></div>
           {sheetStatus?.at && <p className="muted" style={{ marginTop: '.75rem' }}>Last refreshed {new Date(sheetStatus.at).toLocaleString()} ({sheetStatus.rows} visits).</p>}</section>
+        <ClinicSetup />
+        <Duplicates />
+        <Backups />
+        <section className="panel"><h2 style={{ marginBottom: '.4rem' }}>Audit trail</h2><p className="muted" style={{ marginBottom: '1rem' }}>Who changed what, with the earlier values.</p><Link className="btn btn-secondary" to="/admin/audit">Open audit trail</Link></section>
         <section className="panel"><h2 style={{ marginBottom: '.4rem' }}>Import old records</h2><p className="muted" style={{ marginBottom: '1rem' }}>Bring in the clinic's Excel consultation sheet, with a review step first.</p><Link className="btn btn-secondary" to="/admin/import">Import from Excel</Link></section>
         <form className="panel" onSubmit={changePw}><h2 style={{ marginBottom: '1rem' }}>My password</h2><label>New password<input type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" /></label><button className="btn btn-secondary">Update password</button></form>
         <section className="panel danger"><h2 style={{ marginBottom: '.4rem' }}>Demo data</h2><p className="muted" style={{ marginBottom: '1rem' }}>Removes only the fictional patients and everything attached to them.</p><button className="btn btn-danger" onClick={clearDemo}>Clear demo data</button></section>

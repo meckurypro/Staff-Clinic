@@ -2,10 +2,12 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { supabase, initials, minsSince, fmtMins, today } from '../lib/supabase'
-import { Avatar, Badge, Empty, Icon, PageHeader } from '../ui'
+import { Avatar, Badge, Empty, Icon, Notice, PageHeader } from '../ui'
+import { usePending } from '../lib/pending'
 export default function Home() {
   const { profile } = useAuth(); const nav = useNavigate()
   const [beds, setBeds] = useState<any[]>([]); const [stays, setStays] = useState<any[]>([]); const [recent, setRecent] = useState<any[]>([])
+  const [dis, setDis] = useState<string | null>(null); const pending = usePending(true, profile?.id)
   const [stats, setStats] = useState<any>(null); const [, tick] = useState(0); const [q, setQ] = useState('')
   const load = useCallback(async () => {
     const [b, s, st, rv] = await Promise.all([
@@ -17,9 +19,9 @@ export default function Home() {
     setBeds(b.data ?? []); setStays(s.data ?? []); setStats(st.data); setRecent(rv.data ?? [])
   }, [])
   useEffect(() => { load(); const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t) }, [load])
-  async function discharge(id: string) {
-    await supabase.from('bed_stays').update({ discharged_at: new Date().toISOString(), discharged_by: profile?.id, outcome: 'back_to_work' }).eq('id', id)
-    load()
+  async function discharge(id: string, outcome: string) {
+    await supabase.from('bed_stays').update({ discharged_at: new Date().toISOString(), discharged_by: profile?.id, outcome }).eq('id', id)
+    setDis(null); load()
   }
   function find(e: FormEvent) { e.preventDefault(); nav(q.trim() ? `/patients?q=${encodeURIComponent(q.trim())}` : '/patients') }
   const hour = new Date().getHours()
@@ -29,6 +31,7 @@ export default function Home() {
   return (
     <>
       <PageHeader title={`${hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'}, ${profile?.full_name.split(' ')[0]}`} sub={date} />
+      {pending > 0 && <Notice tone="info"><Link to="/review">{pending} {pending === 1 ? 'entry is' : 'entries are'} waiting for your review</Link></Notice>}
       <form className="finder" onSubmit={find} role="search">
         <div className="finder-field"><Icon name="search" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Name, staff ID or phone" aria-label="Find a patient" /></div>
         <div className="btns"><button className="btn btn-primary">Find patient</button><Link className="btn btn-secondary" to="/patients?new=1"><Icon name="plus" size={18} />Register</Link></div>
@@ -50,7 +53,9 @@ export default function Home() {
                     {s ? <>
                       <Link to={`/patients/${s.visits.patient_id}`} className="bed-ini" aria-label="Open patient record">{initials(p?.full_name ?? '?')}</Link>
                       <p className="bed-time">{fmtMins(minsSince(s.admitted_at))}<span> resting</span></p>
-                      <button className="btn btn-secondary btn-sm" onClick={() => discharge(s.id)}>Discharge</button>
+                      {s.reason && <p className="bed-time" style={{ fontSize: '.8rem' }}><span>{s.reason}</span></p>}
+                      {dis === s.id ? <div className="stack">{([['back_to_work', 'Back to work'], ['sent_home', 'Sent home'], ['referred', 'Referred']] as const).map(([o, l]) => <button key={o} className="btn btn-secondary btn-sm" onClick={() => discharge(s.id, o)}>{l}</button>)}<button className="btn btn-ghost btn-sm" onClick={() => setDis(null)}>Cancel</button></div> :
+                        <button className="btn btn-secondary btn-sm" onClick={() => setDis(s.id)}>Discharge</button>}
                     </> : <div className="bed-empty"><Icon name="bed" size={28} />Available</div>}
                   </div>
                 )

@@ -4,7 +4,7 @@ Mobile-first staff clinic records app (React + TypeScript + Vite) on Supabase, d
 Edge functions live in Supabase, not in this repo. This repo is the frontend plus the database migration.
 
 ## Setup
-1. In Supabase, apply `supabase/migrations/001` to `008` in order (SQL editor or MCP) and deploy `supabase/functions/ai-test` and `generate-report`.
+1. In Supabase, apply `supabase/migrations/001` to `009` in order (SQL editor or MCP) and deploy `supabase/functions/ai-test` and `generate-report`.
 2. Authentication: keep email confirmation on, set Site URL and Redirect URLs to your Vercel domain, and (recommended) enable the Before User Created hook with `public.hook_restrict_signup`. The first admin invite is seeded in migration 002; add the doctor and safety manager from the Admin page, then each sets a password on the sign-in page.
 3. `cp .env.example .env` and fill in the project URL and anon key.
 4. `npm install && npm run dev`
@@ -26,3 +26,12 @@ Admin > Import from Excel reads the consultation sheet in the browser, lets you 
 - Email: Admin > Email reports. Add a Resend API key, a sender address on a domain verified in Resend, and the approved recipients. `send-report` only mails addresses on that list, only for final reports, and logs every send.
 - Google Sheet: Admin > Google Sheet. Create a Google Cloud service account with the Sheets API enabled, paste its JSON key, share the sheet with the service account email as Editor, and enter the sheet ID. `sheets-sync` rewrites a read-only "Clinic records" tab. Demo patients are never copied.
 - Keys are stored in Supabase Vault and are never readable from the browser.
+
+## Daily use features
+- **Edit details and merge duplicates:** patient page > Edit details; admins can merge a duplicate there or from Admin > Possible duplicate patients. Merges are logged.
+- **Corrections:** any note, prescription or visit detail can be corrected; the earlier wording stays in the audit trail, and a confirmed entry changed by someone else goes back to review.
+- **Review:** entries recorded on a colleague's behalf appear under Review, with a count badge.
+- **Bed rest:** admit with a reason; discharge with an outcome (back to work, sent home, referred).
+- **Admin > Clinic setup:** departments, beds and the "require staff ID" switch.
+- **Installable and flaky-connection friendly:** add to the home screen; a visit saves completely or not at all (`save_visit`), and an offline banner explains why nothing can be saved.
+- **Backups:** nightly in-database snapshots plus a downloadable full backup; see `docs/RECOVERY.md`.

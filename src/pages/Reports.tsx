@@ -17,7 +17,7 @@ export default function Reports() {
   const [sheetOn, setSheetOn] = useState(false); const [sheetMsg, setSheetMsg] = useState('')
   useEffect(() => { if (clinician) supabase.from('app_settings').select('value').eq('key', 'sheets').maybeSingle().then(x => setSheetOn(!!x.data?.value?.spreadsheet_id)) }, [clinician])
   async function refreshSheet() {
-    setSheetMsg('Refreshing…'); const { data, error } = await supabase.functions.invoke('sheets-sync')
+    setSheetMsg('Refreshing…'); const { data, error } = await supabase.functions.invoke('sheets-sync', { body: { mode: 'full' } })
     let t = data?.error ?? error?.message; if (error && (error as any).context?.json) t = (await (error as any).context.json().catch(() => null))?.error ?? t
     setSheetMsg(t ? `Failed: ${t}` : `Sheet updated with ${data.rows} visits.`)
   }
@@ -43,7 +43,7 @@ export default function Reports() {
           <p className="muted" style={{ marginBottom: '1rem', maxWidth: '62ch' }}>Builds the Word report for the dates above. Figures come from the clinic records; the narrative is drafted by your chosen AI model from totals only, with no names sent.</p>
           <label className="check" style={{ marginBottom: '1.1rem' }}><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} />Show staff names in the consultation table</label>
           <button className="btn btn-primary" onClick={generate} disabled={busy}>{busy ? <><Spinner />Preparing… this can take a minute</> : <><Icon name="file" size={18} />Generate report</>}</button></section>}
-        {sheetOn && <section className="panel"><h2 style={{ marginBottom: '.5rem' }}>Doctor's Google Sheet</h2><p className="muted" style={{ marginBottom: '1rem' }}>Refresh the read-only copy the doctor can open in Google Sheets.</p><button className="btn btn-secondary" onClick={refreshSheet}>Refresh sheet now</button>{sheetMsg && <p className="muted" style={{ marginTop: '.6rem' }}>{sheetMsg}</p>}</section>}
+        {sheetOn && <section className="panel"><h2 style={{ marginBottom: '.5rem' }}>Doctor's Google Sheet</h2><p className="muted" style={{ marginBottom: '1rem' }}>New visits are added to the sheet automatically. Rebuild it from scratch after corrections.</p><button className="btn btn-secondary" onClick={refreshSheet}>Rebuild sheet now</button>{sheetMsg && <p className="muted" style={{ marginTop: '.6rem' }}>{sheetMsg}</p>}</section>}
         <section className="panel"><div className="panel-head"><h2>{clinician ? 'Saved reports' : 'Reports'}</h2></div>
           {list.length === 0 ? <Empty icon="file" title="No reports yet">{clinician ? 'Generate your first report above.' : 'No final reports have been shared yet.'}</Empty> :
             <ul className="rows">{list.map(r => <li key={r.id}><Link className="row-link" to={`/reports/${r.id}`}>

@@ -15,6 +15,7 @@ export default function PatientDetail() {
   const [open, setOpen] = useState(false); const [err, setErr] = useState(''); const [ok, setOk] = useState(''); const [busy, setBusy] = useState(false)
   const [editP, setEditP] = useState<any>(null); const [edit, setEdit] = useState<Edit | null>(null)
   const [admit, setAdmit] = useState<{ visit: string; bed: string; reason: string } | null>(null)
+  const [sheetsOn, setSheetsOn] = useState(false)
   const [merge, setMerge] = useState<{ q: string; rows: any[] } | null>(null)
   const load = useCallback(async () => {
     const [a, v, b, s, d] = await Promise.all([
@@ -25,6 +26,7 @@ export default function PatientDetail() {
       supabase.from('departments').select('*').eq('active', true).order('name'),
     ])
     setP(a.data); setVisits(v.data ?? []); setDepts(d.data ?? [])
+    supabase.from('app_settings').select('value').eq('key', 'sheets').maybeSingle().then(x => setSheetsOn(!!x.data?.value?.spreadsheet_id))
     const used = new Set((s.data ?? []).map((x: any) => x.bed_id)); setFreeBeds((b.data ?? []).filter((x: any) => !used.has(x.id)))
   }, [id])
   useEffect(() => { load() }, [load])
@@ -78,6 +80,8 @@ export default function PatientDetail() {
     setBusy(false)
     if (error) return fail(navigator.onLine ? error.message : 'No internet connection. Nothing was saved. Your entries are still here, so try again when you are back online.')
     setF(blank); setOpen(false); setOk('Visit saved.'); load()
+    // The visit is already queued by the database; this just asks the sheet to catch up. A failure stays queued and is shown on the Admin page.
+    if (sheetsOn) supabase.functions.invoke('sheets-sync', { body: { mode: 'append' } }).catch(() => {})
   }
 
   async function admitNow(e: FormEvent) {

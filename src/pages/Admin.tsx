@@ -15,6 +15,7 @@ export default function Admin() {
   const [sec, setSec] = useState<Record<string, boolean>>({}); const [mail, setMail] = useState<any>({ from: '', recipients: [] })
   const [sheet, setSheet] = useState<any>({ spreadsheet_id: '', include_names: true }); const [sheetStatus, setSheetStatus] = useState<any>({})
   const [rcpt, setRcpt] = useState({ name: '', email: '' }); const [resendKey, setResendKey] = useState(''); const [saJson, setSaJson] = useState('')
+  const [outbox, setOutbox] = useState<any>(null)
   const [apiKey, setApiKey] = useState(''); const [pw, setPw] = useState(''); const [msg, setMsg] = useState('')
   const load = useCallback(async () => {
     const [p, i, m, a, k, cf, st] = await Promise.all([
@@ -26,6 +27,7 @@ export default function Admin() {
       supabase.from('app_settings').select('key,value').in('key', ['report_email', 'sheets', 'sheets_status']),
       supabase.rpc('admin_secret_status'),
     ])
+    supabase.rpc('sheet_outbox_status').then(x => setOutbox(Array.isArray(x.data) ? x.data[0] : x.data))
     const c = Object.fromEntries((cf.data ?? []).map((r: any) => [r.key, r.value]))
     if (c.report_email) setMail(c.report_email); if (c.sheets) setSheet(c.sheets); setSheetStatus(c.sheets_status ?? {})
     setSec(Object.fromEntries((st.data ?? []).map((r: any) => [r.name, r.has_value])))
@@ -64,10 +66,10 @@ export default function Admin() {
     if (saJson) { try { const j = JSON.parse(saJson); if (!j.client_email || !j.private_key) throw 0 } catch { return setMsg('That is not a valid service account key file (invalid).') } await saveSecret('google_service_account', saJson, () => setSaJson('')) }
     saveSetting('sheets', { spreadsheet_id: sheet.spreadsheet_id.trim(), include_names: sheet.include_names }, 'Sheet settings saved.')
   }
-  async function syncNow() {
-    setMsg('Refreshing the sheet…'); const { data, error } = await supabase.functions.invoke('sheets-sync')
+  async function syncNow(mode: 'append' | 'full') {
+    setMsg(mode === 'full' ? 'Rebuilding the sheet…' : 'Sending waiting visits…'); const { data, error } = await supabase.functions.invoke('sheets-sync', { body: { mode } })
     let text = data?.error ?? error?.message; if (error && (error as any).context?.json) text = (await (error as any).context.json().catch(() => null))?.error ?? text
-    setMsg(text ? `Sheet refresh failed: ${text}` : `Sheet updated with ${data.rows} visits.`); if (!text) load()
+    setMsg(text ? `Sheet update failed: ${text}` : mode === 'full' ? `Sheet rebuilt with ${data.rows} visits.` : data.appended === 0 ? 'Nothing was waiting.' : `Added ${data.rows} visit${data.rows === 1 ? '' : 's'} to the sheet.`); load()
   }
   const saEmail = (() => { try { return JSON.parse(saJson).client_email as string } catch { return '' } })()
   async function clearDemo() {
@@ -113,12 +115,13 @@ export default function Admin() {
           <label style={{ marginTop: '1.1rem' }}>Resend API key {sec.resend_api_key ? <b className="ok">saved</b> : <b className="err">not saved</b>}<input type="password" autoComplete="off" value={resendKey} onChange={e => setResendKey(e.target.value)} placeholder={sec.resend_api_key ? 'Leave empty to keep the saved key' : 'Paste key'} /></label>
           <button className="btn btn-secondary btn-sm" disabled={!resendKey} onClick={() => saveSecret('resend_api_key', resendKey, () => setResendKey(''))}>Save key</button></section>
         <section className="panel"><h2 style={{ marginBottom: '.4rem' }}>Google Sheet for the doctor</h2>
-          <p className="muted" style={{ marginBottom: '1rem', maxWidth: '62ch' }}>A read-only copy of the clinic records, refreshed when you tap the button. Edits made in the sheet are not sent back: the doctor documents in the app, or you record on her behalf. Demo patients are never copied.</p>
+          <p className="muted" style={{ marginBottom: '1rem', maxWidth: '62ch' }}>Each visit you save is added to the sheet as a new row, within seconds. Later corrections, confirmations and bed rest are not changed in rows already sent; use Rebuild to refresh the whole sheet. Edits made in the sheet are not sent back: the doctor documents in the app, or you record on her behalf. Demo patients are never copied.</p>
           <label>Sheet ID <small>(the long part of the sheet's address)</small><input value={sheet.spreadsheet_id} onChange={e => setSheet({ ...sheet, spreadsheet_id: e.target.value })} /></label>
           <label className="check" style={{ marginBottom: '1rem' }}><input type="checkbox" checked={sheet.include_names} onChange={e => setSheet({ ...sheet, include_names: e.target.checked })} />Include patient names</label>
           <label>Service account key (JSON) {sec.google_service_account ? <b className="ok">saved</b> : <b className="err">not saved</b>}<textarea value={saJson} onChange={e => setSaJson(e.target.value)} placeholder={sec.google_service_account ? 'Leave empty to keep the saved key' : 'Paste the whole JSON file'} autoComplete="off" /></label>
           {saEmail && <p className="muted">Share the Google Sheet with <b>{saEmail}</b> as Editor.</p>}
-          <div className="form-actions"><button className="btn btn-primary" onClick={saveSheet}>Save</button><button className="btn btn-secondary" onClick={syncNow}>Refresh sheet now</button></div>
+          <div className="form-actions"><button className="btn btn-primary" onClick={saveSheet}>Save</button><button className="btn btn-secondary" onClick={() => syncNow('append')}>Send waiting visits</button><button className="btn btn-secondary" onClick={() => syncNow('full')}>Rebuild whole sheet</button></div>
+          {outbox && <p className="muted" style={{ marginTop: '.75rem' }}>{Number(outbox.pending) === 0 ? 'No visits are waiting to be sent.' : `${outbox.pending} visit${Number(outbox.pending) === 1 ? ' is' : 's are'} waiting to be sent.`}{outbox.last_error ? ` Last problem: ${outbox.last_error}` : ''}</p>}
           {sheetStatus?.at && <p className="muted" style={{ marginTop: '.75rem' }}>Last refreshed {new Date(sheetStatus.at).toLocaleString()} ({sheetStatus.rows} visits).</p>}</section>
         <ClinicSetup />
         <Duplicates />
